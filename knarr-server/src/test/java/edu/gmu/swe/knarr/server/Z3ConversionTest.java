@@ -68,6 +68,16 @@ public class Z3ConversionTest {
         assertFalse(solve(and(new BinaryOperation(Operator.EQ, y, t), new BinaryOperation(Operator.EQ, y, bv(-3)))).sat);
     }
 
+    @Test
+    public void mixedRealAndBitVectorComparison() {
+        // Shape recorded from MultiModelOCL on UncertainTree CPS1: 27225.0 <= R2BV(r * r)
+        Expression r2 = new UnaryOperation(Operator.R2BV, 32,
+                new BinaryOperation(Operator.MUL, radius(), radius()));
+        Expression c = new BinaryOperation(Operator.LE, new RealConstant(27225.0), r2);
+        assertTrue(solve(and(c, new BinaryOperation(Operator.EQ, D, bv(330)))).sat);
+        assertFalse(solve(and(c, new BinaryOperation(Operator.EQ, D, bv(329)))).sat);
+    }
+
     private Solution solve(Expression expr) {
         Instance inst = new Instance(green, null, expr);
         Z3GreenBridge bridge = solver.getUnderlyingExpr(inst);
