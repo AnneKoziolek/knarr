@@ -40,14 +40,55 @@ public final class RecordingScope {
     }
 
     public static boolean isActive() {
-        return PREFIXES != null;
+        return PREFIXES != null && STACKWALK;
     }
 
     /** True if a constraint produced at the current point should be recorded. */
+    private static final java.util.concurrent.atomic.AtomicLong CALLS = new java.util.concurrent.atomic.AtomicLong();
+    private static final java.util.concurrent.atomic.AtomicLong ALLOWED = new java.util.concurrent.atomic.AtomicLong();
+    private static final java.util.concurrent.atomic.AtomicLong NANOS = new java.util.concurrent.atomic.AtomicLong();
+
+    /** Counters since start: checks, checks that allowed recording, time spent checking. */
+    public static String stats() {
+        return "scope checks=" + CALLS.get() + " allowed=" + ALLOWED.get() + " time=" + NANOS.get() / 1_000_000 + " ms";
+    }
+
+    /**
+     * Stack walking is expensive in a Galette-instrumented JVM (measured 3.6 ms per check
+     * on Vitruvius, 72k checks per commit). The default scope mechanism is therefore
+     * Galette's instrumentation-time branch filter ({@code galette.symbolic.branchPrefixes},
+     * see {@link #configureGalette()}); the stack-walking filter is only used if
+     * {@code knarr.record.stackwalk=true} is set as well.
+     */
+    private static final boolean STACKWALK = Boolean.getBoolean("knarr.record.stackwalk");
+
+    /**
+     * If {@code galette.symbolic.branchPrefixes} is set, Galette emits branch hooks only in
+     * matching application classes; branches inside the JDK are reported through the
+     * library hooks, which are switched off here. Called when the listener is created.
+     */
+    public static void configureGalette() {
+        String p = System.getProperty("galette.symbolic.branchPrefixes");
+        if (p != null && !p.trim().isEmpty()) {
+            edu.neu.ccs.prl.galette.internal.runtime.symbolic.SymbolicListener.setRecordLibraryBranches(false);
+        }
+    }
+
     public static boolean allowed() {
-        if (PREFIXES == null) {
+        if (PREFIXES == null || !STACKWALK) {
             return true;
         }
+        long t = System.nanoTime();
+        boolean ok = walk();
+        NANOS.addAndGet(System.nanoTime() - t);
+        CALLS.incrementAndGet();
+        if (ok) {
+            ALLOWED.incrementAndGet();
+        }
+        return ok;
+    }
+
+    private static boolean walk() {
         return WALKER.walk(frames -> {
             java.util.Iterator<StackWalker.StackFrame> it = frames.iterator();
             while (it.hasNext()) {

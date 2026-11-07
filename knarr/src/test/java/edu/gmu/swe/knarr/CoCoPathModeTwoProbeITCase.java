@@ -115,4 +115,17 @@ public class CoCoPathModeTwoProbeITCase {
         Assertions.assertTrue(e.toString().contains("ROUND"), e.toString());
         Assertions.assertFalse(pc.contains("&"), "no bit-pattern constraints from Math.round internals: " + pc);
     }
+
+    @Test
+    void libraryCompareKeepsThePredicate() {
+        // MultiModelOCL compares numbers via Double.compare(a, b) < 0; the JDK's -1/0/1
+        // result must carry the comparison (masks + CmpDifference).
+        double r = Symbolicator.symbolic("r_double", 162.5);
+        if (Double.compare(r * r, 26000.0) < 0) {
+            System.out.println("[probe] Double.compare branch taken");
+        }
+        String pc = pc();
+        System.out.println("[probe] libraryCompareKeepsThePredicate PC: " + pc);
+        Assertions.assertTrue(pc.contains("(r_double*r_double)") && pc.contains("26000.0"), pc);
+    }
 }

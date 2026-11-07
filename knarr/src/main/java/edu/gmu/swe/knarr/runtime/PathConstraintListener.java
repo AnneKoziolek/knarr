@@ -24,6 +24,11 @@ import za.ac.sun.cs.green.expr.UnaryOperation;
  */
 public final class PathConstraintListener implements SymbolicExecutionListener {
 
+    public PathConstraintListener() {
+        // CoCoPath/UncertainTree: honour galette.symbolic.branchPrefixes (JDK branches off).
+        RecordingScope.configureGalette();
+    }
+
     /**
      * Per-thread reentrance guard. While {@code true}, the listener silently
      * falls back to default behavior — used to avoid infinite recursion when
@@ -736,6 +741,22 @@ public final class PathConstraintListener implements SymbolicExecutionListener {
                 : ExpressionBuilder.exprForDouble(tag, value);
         Expression rounded = new UnaryOperation(Operator.ROUND, e);
         return Tag.of(new UnaryOperation(Operator.R2BV, isFloat ? 32 : 64, rounded));
+    }
+
+    /** Integer.compare / Long.compare: same CmpDifference marker as LCMP. */
+    @Override
+    public Tag onIntegralCompare(boolean isLong, long v1, long v2, Tag t1, Tag t2) {
+        Expression l = isLong ? ExpressionBuilder.exprForLong(t1, v1) : ExpressionBuilder.exprForInt(t1, (int) v1);
+        Expression r = isLong ? ExpressionBuilder.exprForLong(t2, v2) : ExpressionBuilder.exprForInt(t2, (int) v2);
+        return cmpTag(l, r);
+    }
+
+    /** Float.compare / Double.compare: same CmpDifference marker as FCMPx/DCMPx. */
+    @Override
+    public Tag onRealCompare(boolean isFloat, double v1, double v2, Tag t1, Tag t2) {
+        Expression l = ExpressionBuilder.exprForDouble(t1, v1);
+        Expression r = ExpressionBuilder.exprForDouble(t2, v2);
+        return cmpTag(l, r);
     }
 
     /** Tag for a compare result whose operands are symbolic; null if both are concrete. */

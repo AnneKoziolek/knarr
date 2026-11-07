@@ -213,6 +213,20 @@ public class Symbolicator {
         return Tainter.setTag(v, Tag.of(var));
     }
 
+    /**
+     * Symbolic int with a domain: also records {@code min <= label <= max} as anchor
+     * constraints, so every solver query (including flipped branches) respects the
+     * domain. CoCoPath/UncertainTree: the domain of an uncertainty annotation (e.g.
+     * a ParameterizedDiscreteRange) becomes solver input.
+     */
+    public static int symbolicInRange(String label, int v, int min, int max) {
+        int r = symbolic(label, v);
+        Expression var = (Expression) Tag.getLabels(Tainter.getTag(r))[0];
+        PathUtils.getCurPC()._addDet(Operator.GE, var, new BVConstant(min, 32));
+        PathUtils.getCurPC()._addDet(Operator.LE, var, new BVConstant(max, 32));
+        return r;
+    }
+
     public static long symbolic(String label, long v) {
         PathUtils.checkLabelAndInitJPF(label);
         Expression var = new BVVariable(label, 64);
