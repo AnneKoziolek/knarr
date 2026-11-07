@@ -95,10 +95,12 @@ public final class PathConstraintListener implements SymbolicExecutionListener {
         Expression l = ExpressionBuilder.exprForFloat(t1, v1);
         Expression r = ExpressionBuilder.exprForFloat(t2, v2);
 
-        // FCMPL/FCMPG: record path constraints, no result tag.
+        // FCMPL/FCMPG: return a CmpDifference marker; the consuming IF<cond>
+        // records the exact predicate (see onIntBranch). Previously the
+        // three-way outcome (EQ/LT/GT) was recorded here, which is too narrow
+        // for the branch actually taken (e.g. "==" for a not-taken "<").
         if (opcode == FCMPL || opcode == FCMPG) {
-            recordRealCmp(l, r, v1, v2);
-            return null;
+            return cmpTag(l, r);
         }
 
         Expression result = ExpressionBuilder.floatBinary(opcode, l, r);
@@ -149,8 +151,7 @@ public final class PathConstraintListener implements SymbolicExecutionListener {
         try {
             Expression l = ExpressionBuilder.exprForLong(t1, v1);
             Expression r = ExpressionBuilder.exprForLong(t2, v2);
-            recordIntCmp(l, r, v1 == v2, v1 < v2);
-            return null;
+            return cmpTag(l, r);
         } finally {
             leave();
         }
@@ -175,8 +176,7 @@ public final class PathConstraintListener implements SymbolicExecutionListener {
     public Tag onDoubleCmp(int opcode, double v1, double v2, Tag t1, Tag t2) {
         Expression l = ExpressionBuilder.exprForDouble(t1, v1);
         Expression r = ExpressionBuilder.exprForDouble(t2, v2);
-        recordRealCmp(l, r, v1, v2);
-        return null;
+        return cmpTag(l, r);
     }
 
     @Override
@@ -227,6 +227,13 @@ public final class PathConstraintListener implements SymbolicExecutionListener {
         try {
             Expression e = ExpressionBuilder.exprForInt(tag, value);
             boolean taken = evalUnaryBranch(opcode, value);
+            if (e instanceof CmpDifference) {
+                CmpDifference d = (CmpDifference) e;
+                Operator op = relationFor(opcode);
+                Expression rel = new BinaryOperation(op, d.left(), d.right());
+                PathUtils.getCurPC()._addBranchDet(taken ? rel : new UnaryOperation(Operator.NOT, rel));
+                return;
+            }
             PathUtils.addConstraint(e, opcode, taken);
         } finally {
             leave();
@@ -706,6 +713,34 @@ public final class PathConstraintListener implements SymbolicExecutionListener {
                 return v1 <= v2;
             default:
                 return false;
+        }
+    }
+
+    /** Tag for a compare result whose operands are symbolic; null if both are concrete. */
+    private static Tag cmpTag(Expression l, Expression r) {
+        if (l instanceof Constant && r instanceof Constant) {
+            return null;
+        }
+        return Tag.of(new CmpDifference(l, r));
+    }
+
+    /** {@code IF<cond>} on {@code (l cmp r)} is the relation {@code l <cond> r}. */
+    private static Operator relationFor(int opcode) {
+        switch (opcode) {
+            case IFEQ:
+                return Operator.EQ;
+            case IFNE:
+                return Operator.NE;
+            case IFLT:
+                return Operator.LT;
+            case IFGE:
+                return Operator.GE;
+            case IFGT:
+                return Operator.GT;
+            case IFLE:
+                return Operator.LE;
+            default:
+                throw new IllegalArgumentException("Unexpected branch opcode after compare: " + opcode);
         }
     }
 
