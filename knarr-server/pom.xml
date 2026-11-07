@@ -100,11 +100,14 @@
             <artifactId>choco-solver</artifactId>
             <version>3.3.0</version>
         </dependency>
-		<!-- https://mvnrepository.com/artifact/org.sosy-lab/javasmt-solver-z3 -->
+        <!-- CoCoPath/UncertainTree stack: Green here is AnneKoziolek/green-solver
+             (+ Bell's Z3JavaTranslator fixes), compiled against Z3 4.8.14 via
+             z3-turnkey. javasmt-solver-z3 4.8.9 shadowed those classes and caused
+             NoSuchMethodError Solver.assertAndTrack(Expr,Expr). -->
         <dependency>
-            <groupId>org.sosy-lab</groupId>
-            <artifactId>javasmt-solver-z3</artifactId>
-            <version>4.8.9-sosy1</version>
+            <groupId>io.github.tudo-aqua</groupId>
+            <artifactId>z3-turnkey</artifactId>
+            <version>4.8.14</version>
         </dependency>
     </dependencies>
     <distributionManagement>
