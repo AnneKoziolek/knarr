@@ -41,6 +41,7 @@ public class PathConditionWrapper implements Serializable {
 	}
 
 	public synchronized void _addDet(Operation op) {
+		if (!RecordingScope.allowed()) return;
 		if (constraints == null)
 			constraints = op;
 		else {
@@ -53,6 +54,7 @@ public class PathConditionWrapper implements Serializable {
 
 	public synchronized Expression _addDet(Operator op, Expression l, Expression r) {
 		Operation ret = new BinaryOperation(op, l, r);
+		if (!RecordingScope.allowed()) return ret;
 		if (constraints == null)
 			constraints = ret;
 		else {
@@ -67,6 +69,7 @@ public class PathConditionWrapper implements Serializable {
 
 	public synchronized Expression _addDet(Operator op, Expression t1) {
 		Operation ret = new UnaryOperation(op, t1);
+		if (!RecordingScope.allowed()) return ret;
 		if (constraints == null)
 			constraints = ret;
 		else {
@@ -93,6 +96,7 @@ public class PathConditionWrapper implements Serializable {
 	 */
 	public synchronized void _addBranchDet(Expression branch) {
 		if (!(branch instanceof Operation)) return;
+		if (!RecordingScope.allowed()) return;
 		// Mirror the _addDet(Operation) accept/reject logic exactly so
 		// the branch list mirrors the AND-tree leaves 1:1.
 		if (constraints == null) {
