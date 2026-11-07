@@ -54,6 +54,8 @@ public class CoCoPathModeTwoProbeITCase {
         int diameterInMM = Symbolicator.symbolic("diameterInMM", 330);
         float radius = diameterInMM / 2.0f;
         System.out.println("[probe] radius expression: " + Symbolicator.getExpression(radius));
+        Assertions.assertTrue(String.valueOf(Symbolicator.getExpression(radius)).contains("BV2R"),
+                "int-to-float must be an explicit BV2R conversion");
         if (radius > 164.5f) {
             System.out.println("[probe] float branch taken");
         }

@@ -116,10 +116,20 @@ public final class PathConstraintListener implements SymbolicExecutionListener {
 
     @Override
     public Tag onCat1Convert(int opcode, Tag tag) {
-        // Cat-1 conversions where we have no concrete value handy; the SPI
-        // doesn't pass one. The original Knarr handled I2F/F2I as null taints
-        // (DISABLE_FLOATS), so we just propagate.
-        return tag;
+        // I2F / F2I. No concrete value is passed, but none is needed: with an
+        // empty tag there is nothing to convert, otherwise the tag's label is the
+        // operand expression. CoCoPath/UncertainTree: I2F -> BV2R, F2I -> R2BV(32)
+        // (previously the tag was passed through, so a float kept the int's
+        // bit-vector expression).
+        if (Tag.isEmpty(tag)) {
+            return tag;
+        }
+        Object label = Tag.getLabels(tag)[0];
+        if (!(label instanceof Expression)) {
+            return tag;
+        }
+        Expression result = ExpressionBuilder.convert(opcode, (Expression) label);
+        return result == null ? tag : Tag.of(result);
     }
 
     @Override
