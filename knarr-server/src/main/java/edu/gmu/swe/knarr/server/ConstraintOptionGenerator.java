@@ -257,6 +257,10 @@ public class ConstraintOptionGenerator {
 			case Z3_OP_TO_REAL:
 				op = Operator.I2R;
 				return new UnaryOperation(op, createExpr(exp.getArgs()[0]));
+			case Z3_OP_TO_INT:
+				// CoCoPath/UncertainTree: floor, from Math.round / float-to-int conversions.
+				op = Operator.R2I;
+				return new UnaryOperation(op, createExpr(exp.getArgs()[0]));
 			case Z3_OP_UMINUS:
             case Z3_OP_BNEG:
 				op = Operator.NEG;

@@ -716,6 +716,18 @@ public final class PathConstraintListener implements SymbolicExecutionListener {
         }
     }
 
+    /**
+     * Math.round(float) = floor(x + 0.5) as int (32-bit BV), Math.round(double) as long
+     * (64-bit BV). CoCoPath/UncertainTree addition; needs Galette's MathSymbolicMasks.
+     */
+    @Override
+    public Tag onMathRound(boolean isFloat, double value, Tag tag) {
+        Expression e = isFloat ? ExpressionBuilder.exprForFloat(tag, (float) value)
+                : ExpressionBuilder.exprForDouble(tag, value);
+        Expression rounded = new UnaryOperation(Operator.ROUND, e);
+        return Tag.of(new UnaryOperation(Operator.R2BV, isFloat ? 32 : 64, rounded));
+    }
+
     /** Tag for a compare result whose operands are symbolic; null if both are concrete. */
     private static Tag cmpTag(Expression l, Expression r) {
         if (l instanceof Constant && r instanceof Constant) {

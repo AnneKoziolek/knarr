@@ -93,4 +93,24 @@ public class CoCoPathModeTwoProbeITCase {
         Assertions.assertTrue(pc.contains("((x_double+1.0)>=y_double)"), pc);
         Assertions.assertFalse(pc.contains("=="), "three-way outcome must not be recorded: " + pc);
     }
+
+    @Test
+    void mathRoundRoundTripStaysSymbolic() {
+        // UncertainTree brake: brakesystem2cad writes radius = d / 2.0f, cad2brakesystem
+        // writes back diameterInMM = Math.round(<parameter>). Math.round works on the
+        // float's bit pattern; it must yield R2BV(ROUND(...)), not bit-mask garbage.
+        int d = Symbolicator.symbolic("diameterInMM", 325);
+        float radius = d / 2.0f;
+        int back = Math.round(radius * 2.0f);
+        Expression e = Symbolicator.getExpression(back);
+        System.out.println("[probe] round-trip expression: " + e);
+        if (back > 329) {
+            System.out.println("[probe] round-trip branch taken");
+        }
+        String pc = pc();
+        System.out.println("[probe] mathRoundRoundTripStaysSymbolic PC: " + pc);
+        Assertions.assertNotNull(e, "Math.round result must stay symbolic");
+        Assertions.assertTrue(e.toString().contains("ROUND"), e.toString());
+        Assertions.assertFalse(pc.contains("&"), "no bit-pattern constraints from Math.round internals: " + pc);
+    }
 }

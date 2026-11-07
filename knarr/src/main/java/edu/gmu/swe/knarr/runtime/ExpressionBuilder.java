@@ -330,7 +330,10 @@ public final class ExpressionBuilder {
             case SymbolicOpcodes.L2D:
                 return new UnaryOperation(Operator.I2R, e);
             case SymbolicOpcodes.D2L:
-                return new UnaryOperation(Operator.R2I, e);
+            case SymbolicOpcodes.F2L:
+                // CoCoPath/UncertainTree: Java truncation toward zero, as a 64-bit BV
+                // (translated in Green's Z3JavaTranslator, case R2BV).
+                return new UnaryOperation(Operator.R2BV, 64, e);
             case SymbolicOpcodes.F2D:
                 // Floats and doubles share representation in Green; pass through.
                 return e;
@@ -338,12 +341,13 @@ public final class ExpressionBuilder {
                 return e;
             case SymbolicOpcodes.I2F:
             case SymbolicOpcodes.I2D:
-            case SymbolicOpcodes.F2I:
-            case SymbolicOpcodes.F2L:
+                // CoCoPath/UncertainTree: ints are 32-bit BVs; BV2R = bv2int (signed) then int2real.
+                return new UnaryOperation(Operator.BV2R, e);
             case SymbolicOpcodes.L2F:
+                return new UnaryOperation(Operator.BV2R, e);
+            case SymbolicOpcodes.F2I:
             case SymbolicOpcodes.D2I:
-                // Not supported by Knarr's solver pipeline.
-                return null;
+                return new UnaryOperation(Operator.R2BV, 32, e);
             default:
                 return e;
         }
