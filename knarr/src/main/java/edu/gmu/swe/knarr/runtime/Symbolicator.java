@@ -221,10 +221,18 @@ public class Symbolicator {
      * a ParameterizedDiscreteRange) becomes solver input.
      */
     public static int symbolicInRange(String label, int v, int min, int max) {
-        int r = symbolic(label, v);
-        Expression var = (Expression) Tag.getLabels(Tainter.getTag(r))[0];
-        PathUtils.getCurPC()._addDet(Operator.GE, var, new BVConstant(min, 32));
-        PathUtils.getCurPC()._addDet(Operator.LE, var, new BVConstant(max, 32));
+        // Bounded integer (Z3 Int with the domain as bounds) instead of a 32-bit bit-vector:
+        // Z3 is far faster on integer terms inside nonlinear real arithmetic, and within the
+        // bounds the two agree. Wrap-around of derived terms is flagged by OverflowMonitor.
+        PathUtils.checkLabelAndInitJPF(label);
+        Expression var = new za.ac.sun.cs.green.expr.IntVariable(label, min, max);
+        symbolicLabels.put(var, label);
+        if (mySoln != null && !mySoln.isUnconstrained && mySoln.varMapping.get(label) instanceof Integer) {
+            v = (Integer) mySoln.varMapping.get(label);
+        }
+        int r = Tainter.setTag(v, Tag.of(var));
+        PathUtils.getCurPC()._addDet(Operator.GE, var, new za.ac.sun.cs.green.expr.IntConstant(min));
+        PathUtils.getCurPC()._addDet(Operator.LE, var, new za.ac.sun.cs.green.expr.IntConstant(max));
         return r;
     }
 

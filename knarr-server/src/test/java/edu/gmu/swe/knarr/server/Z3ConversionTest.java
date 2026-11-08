@@ -78,6 +78,61 @@ public class Z3ConversionTest {
         assertFalse(solve(and(c, new BinaryOperation(Operator.EQ, D, bv(329)))).sat);
     }
 
+    // ---- bounded-integer mode (variables with an annotation domain) ----
+
+    private static final za.ac.sun.cs.green.expr.IntVariable DI =
+            new za.ac.sun.cs.green.expr.IntVariable("d_int", 325, 337);
+
+    private static Expression ic(int v) {
+        return new za.ac.sun.cs.green.expr.IntConstant(v);
+    }
+
+    @Test
+    public void boundedIntMixesWithBitVectorConstants() {
+        // Java constants arrive as 32-bit BVConstants; d_int is an Int. d != 0 and d <= 330.
+        Expression c = and(new BinaryOperation(Operator.NE, DI, bv(0)), new BinaryOperation(Operator.LE, DI, bv(330)));
+        assertTrue(satDirect(and(c, new BinaryOperation(Operator.EQ, DI, ic(330)))));
+        assertFalse(satDirect(and(c, new BinaryOperation(Operator.EQ, DI, ic(331)))));
+    }
+
+    @Test
+    public void boundedIntCylinderConstraintAsRecorded() {
+        // CPS1 shape with d as bounded integer: 27225.0 <= R2BV((BV2R(sext(d))/2.0)^2)
+        Expression d = new UnaryOperation(Operator.EXTRACT, 31, 0, new UnaryOperation(Operator.SIGN_EXT, 32, DI));
+        Expression r = new BinaryOperation(Operator.DIV, new UnaryOperation(Operator.BV2R, d), new RealConstant(2.0));
+        Expression c = new BinaryOperation(Operator.LE, new RealConstant(27225.0),
+                new UnaryOperation(Operator.R2BV, 32, new BinaryOperation(Operator.MUL, r, r)));
+        assertTrue(satDirect(and(c, new BinaryOperation(Operator.EQ, DI, ic(330)))));
+        assertFalse(satDirect(and(c, new BinaryOperation(Operator.EQ, DI, ic(329)))));
+    }
+
+    @Test
+    public void boundedIntDivisionAndModuloFollowJava() {
+        za.ac.sun.cs.green.expr.IntVariable a = new za.ac.sun.cs.green.expr.IntVariable("a_int", -10, 10);
+        // Java: -7 / 2 == -3 (SMT div would give -4), -7 % 2 == -1
+        Expression a7 = new BinaryOperation(Operator.EQ, a, ic(-7));
+        assertTrue(satDirect(and(a7, new BinaryOperation(Operator.EQ, new BinaryOperation(Operator.DIV, a, ic(2)), ic(-3)))));
+        assertFalse(satDirect(and(a7, new BinaryOperation(Operator.EQ, new BinaryOperation(Operator.DIV, a, ic(2)), ic(-4)))));
+        assertTrue(satDirect(and(a7, new BinaryOperation(Operator.EQ, new BinaryOperation(Operator.MOD, a, ic(2)), ic(-1)))));
+    }
+
+    /**
+     * Direct translation and check, as uncertaintree-mode2's Mode2SolverServer does (no
+     * ConstraintOptionGenerator, which rebuilds expressions and does not know every Z3
+     * operator). Used for the bounded-integer mode.
+     */
+    private static boolean satDirect(Expression expr) {
+        try (com.microsoft.z3.Context ctx = new com.microsoft.z3.Context()) {
+            za.ac.sun.cs.green.service.z3.Z3JavaTranslator t = new za.ac.sun.cs.green.service.z3.Z3JavaTranslator(ctx);
+            expr.accept(t);
+            com.microsoft.z3.Solver s = ctx.mkSolver();
+            s.add((com.microsoft.z3.BoolExpr) t.getTranslation());
+            return s.check() == com.microsoft.z3.Status.SATISFIABLE;
+        } catch (za.ac.sun.cs.green.expr.VisitorException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     private Solution solve(Expression expr) {
         Instance inst = new Instance(green, null, expr);
         Z3GreenBridge bridge = solver.getUnderlyingExpr(inst);
