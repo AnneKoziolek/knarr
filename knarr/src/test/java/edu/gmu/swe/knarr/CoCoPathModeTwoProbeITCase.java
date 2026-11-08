@@ -1,6 +1,7 @@
 package edu.gmu.swe.knarr;
 
 import edu.gmu.swe.knarr.runtime.PathConstraintListener;
+import edu.gmu.swe.knarr.runtime.OverflowMonitor;
 import edu.gmu.swe.knarr.runtime.PathUtils;
 import edu.gmu.swe.knarr.runtime.Symbolicator;
 import edu.neu.ccs.prl.galette.internal.runtime.symbolic.SymbolicListener;
@@ -127,5 +128,37 @@ public class CoCoPathModeTwoProbeITCase {
         String pc = pc();
         System.out.println("[probe] libraryCompareKeepsThePredicate PC: " + pc);
         Assertions.assertTrue(pc.contains("(r_double*r_double)") && pc.contains("26000.0"), pc);
+    }
+
+    @Test
+    void overflowOnSymbolicArithmeticIsDetected() {
+        // Java int arithmetic wraps; a mathematical-integer encoding would not. The monitor
+        // must flag the wrap on tagged values and stay silent otherwise.
+        int small = Symbolicator.symbolicInRange("ov_small", 330, 325, 337);
+        int product = small * small;
+        Assertions.assertEquals(108900, product);
+        Assertions.assertEquals(0, OverflowMonitor.count(), "no overflow for d*d with d in [325, 337]");
+
+        int big = Symbolicator.symbolicInRange("ov_big", 2_000_000_000, 0, Integer.MAX_VALUE);
+        int wrapped = big + big;
+        Assertions.assertTrue(wrapped < 0, "Java wraps");
+        Assertions.assertEquals(1, OverflowMonitor.count(), "IADD overflow on a tagged value");
+        Assertions.assertTrue(OverflowMonitor.first().startsWith("IADD"), OverflowMonitor.first());
+
+        long l = Symbolicator.symbolic("ov_long", Long.MAX_VALUE);
+        long lw = l * 2L;
+        Assertions.assertTrue(lw < 0);
+        Assertions.assertEquals(2, OverflowMonitor.count(), "LMUL overflow");
+
+        double d = Symbolicator.symbolic("ov_double", 1e12);
+        int sat = (int) d;
+        Assertions.assertEquals(Integer.MAX_VALUE, sat, "Java saturates");
+        Assertions.assertEquals(3, OverflowMonitor.count(), "D2I out of range");
+
+        int untagged = 2_000_000_000;
+        int w2 = untagged + untagged;
+        Assertions.assertTrue(w2 < 0);
+        Assertions.assertEquals(3, OverflowMonitor.count(), "untagged arithmetic is not reported");
+        System.out.println("[probe] overflow monitor: " + OverflowMonitor.count() + ", first: " + OverflowMonitor.first());
     }
 }

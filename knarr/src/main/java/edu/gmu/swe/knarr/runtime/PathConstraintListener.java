@@ -76,6 +76,7 @@ public final class PathConstraintListener implements SymbolicExecutionListener {
                 if (Tag.isEmpty(t2) && v2 == 0) return t1;
             }
 
+            OverflowMonitor.checkInt(opcode, v1, v2);
             Expression result = ExpressionBuilder.intBinary(opcode, l, r);
             return result == null ? Tag.union(t1, t2) : Tag.of(result);
         } finally {
@@ -87,6 +88,7 @@ public final class PathConstraintListener implements SymbolicExecutionListener {
     public Tag onIntUnary(int opcode, int value, Tag tag) {
         if (!enter()) return tag;
         try {
+            OverflowMonitor.checkIntUnary(opcode, value);
             Expression e = ExpressionBuilder.exprForInt(tag, value);
             Expression result = ExpressionBuilder.intUnary(opcode, e);
             return result == null ? tag : Tag.of(result);
@@ -141,6 +143,7 @@ public final class PathConstraintListener implements SymbolicExecutionListener {
     public Tag onLongArith(int opcode, long v1, long v2, Tag t1, Tag t2) {
         if (!enter()) return Tag.union(t1, t2);
         try {
+            OverflowMonitor.checkLong(opcode, v1, v2);
             Expression l = ExpressionBuilder.exprForLong(t1, v1);
             Expression r = ExpressionBuilder.exprForLong(t2, v2);
             Expression result = ExpressionBuilder.longBinary(opcode, l, r);
@@ -174,6 +177,7 @@ public final class PathConstraintListener implements SymbolicExecutionListener {
 
     @Override
     public Tag onLongUnary(int opcode, long value, Tag tag) {
+        OverflowMonitor.checkLongUnary(opcode, value);
         Expression e = ExpressionBuilder.exprForLong(tag, value);
         Expression result = ExpressionBuilder.longUnary(opcode, e);
         return result == null ? tag : Tag.of(result);
@@ -229,6 +233,7 @@ public final class PathConstraintListener implements SymbolicExecutionListener {
 
     @Override
     public Tag onDoubleConvert(int opcode, double value, Tag tag) {
+        OverflowMonitor.checkDoubleConvert(opcode, value);
         Expression e = ExpressionBuilder.exprForDouble(tag, value);
         Expression result = ExpressionBuilder.convert(opcode, e);
         return result == null ? tag : Tag.of(result);

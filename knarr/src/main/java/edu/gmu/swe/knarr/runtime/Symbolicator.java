@@ -178,6 +178,7 @@ public class Symbolicator {
     }
 
     public static void reset() {
+        OverflowMonitor.reset();
         PathUtils.getCurPC().constraints = null;
         PathUtils.getCurPC().size = 0;
         PathUtils.getCurPC().clearBranches();
