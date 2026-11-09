@@ -320,8 +320,19 @@ public final class ExpressionBuilder {
      * pipeline (PathUtils returned null taints with DISABLE_FLOATS=true) so
      * we return null here.
      */
+    /** Diagnosis (2026-11-09): -Dknarr.traceConvert=<substring> prints a stack trace for every truncation of a matching expression. */
+    private static final String TRACE_CONVERT = emptyToNull(System.getProperty("knarr.traceConvert"));
+
+    private static String emptyToNull(String s) {
+        return s == null || s.isEmpty() ? null : s;
+    }
+
     public static Expression convert(int opcode, Expression e) {
         if (e == null) return null;
+        if (TRACE_CONVERT != null && (opcode == SymbolicOpcodes.F2I || opcode == SymbolicOpcodes.F2L
+                || opcode == SymbolicOpcodes.D2I || opcode == SymbolicOpcodes.D2L) && e.toString().contains(TRACE_CONVERT)) {
+            new Throwable("[knarr-trace] truncation opcode " + opcode + " of " + e).printStackTrace(System.out);
+        }
         switch (opcode) {
             case SymbolicOpcodes.I2L:
                 return new UnaryOperation(Operator.SIGN_EXT, 32, e);
