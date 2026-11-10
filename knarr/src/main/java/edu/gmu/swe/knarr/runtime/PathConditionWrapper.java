@@ -94,9 +94,17 @@ public class PathConditionWrapper implements Serializable {
 	 * solver will see. Caller must check the size cap state itself if it
 	 * cares about per-call registration.
 	 */
+	/** Diagnosis (2026-11-10): -Dknarr.traceBranch=<text> prints a stack trace for the first 5 recorded branches whose text equals it. */
+	private static final String TRACE_BRANCH = System.getProperty("knarr.traceBranch", "").isEmpty() ? null : System.getProperty("knarr.traceBranch");
+	private static int traced;
+
 	public synchronized void _addBranchDet(Expression branch) {
 		if (!(branch instanceof Operation)) return;
 		if (!RecordingScope.allowed()) return;
+		if (TRACE_BRANCH != null && traced < 5 && TRACE_BRANCH.equals(branch.toString())) {
+			traced++;
+			new Throwable("[knarr-trace] branch " + branch).printStackTrace(System.out);
+		}
 		// Mirror the _addDet(Operation) accept/reject logic exactly so
 		// the branch list mirrors the AND-tree leaves 1:1.
 		if (constraints == null) {
