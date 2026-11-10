@@ -94,14 +94,27 @@ public class PathConditionWrapper implements Serializable {
 	 * solver will see. Caller must check the size cap state itself if it
 	 * cares about per-call registration.
 	 */
-	/** Diagnosis (2026-11-10): -Dknarr.traceBranch=<text> prints a stack trace for the first 5 recorded branches whose text equals it. */
+	/** Diagnosis (2026-11-10): -Dknarr.traceBranch=<text> prints a stack trace for the first 5 recorded branches whose prefix form (depth 6) equals it. */
 	private static final String TRACE_BRANCH = System.getProperty("knarr.traceBranch", "").isEmpty() ? null : System.getProperty("knarr.traceBranch");
 	private static int traced;
+
+	/** Prefix form, as UncertainTree Mode 2 prints path conditions: {@code ==(0, x)}. */
+	static String brief(Expression e, int depth) {
+		if (!(e instanceof Operation)) return String.valueOf(e);
+		if (depth <= 0) return "\u2026";
+		Operation o = (Operation) e;
+		StringBuilder sb = new StringBuilder(o.getOperator().toString()).append('(');
+		for (int i = 0; i < o.getArity(); i++) {
+			if (i > 0) sb.append(", ");
+			sb.append(brief(o.getOperand(i), depth - 1));
+		}
+		return sb.append(')').toString();
+	}
 
 	public synchronized void _addBranchDet(Expression branch) {
 		if (!(branch instanceof Operation)) return;
 		if (!RecordingScope.allowed()) return;
-		if (TRACE_BRANCH != null && traced < 5 && TRACE_BRANCH.equals(branch.toString())) {
+		if (TRACE_BRANCH != null && traced < 5 && TRACE_BRANCH.equals(brief(branch, 6))) {
 			traced++;
 			new Throwable("[knarr-trace] branch " + branch).printStackTrace(System.out);
 		}
